@@ -29,7 +29,8 @@
         "lint:fix": "eslint . --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "clean": "rm -rf dist"
+        "clean": "rm -rf dist",
+        "prepare": "husky"
     },
     "keywords": [
         "llm",
@@ -57,6 +58,7 @@
         "eslint": "^10.15.0",
         "eslint-config-prettier": "^10.1.8",
         "globals": "^17.14.0",
+        "husky": "^9.1.7",
         "prettier": "^3.10.1",
         "tsup": "^8.3.5",
         "typescript": "^5.7.2",
