@@ -19,7 +19,7 @@ export interface NormalizationResult {
  * Strips invisible/control/bidi characters, normalizes Unicode to NFC,
  * and builds a diacritic-stripped lowercase shadow copy for matching.
  */
-export function normalizePrompt(rawInput: string): NormalizationResult {
+export function normalizePrompt(rawInput: string, mode: PromptMode = 'auto'): NormalizationResult {
     let strippedControlChars = 0;
     let strippedZeroWidthChars = 0;
     let strippedBidiChars = 0;
@@ -43,9 +43,12 @@ export function normalizePrompt(rawInput: string): NormalizationResult {
     text = text
         .normalize('NFC')
         .replace(/\r\n?/g, '\n')
-        .replace(/[ \t]{3,}/g, ' ')
         .replace(/\n{4,}/g, '\n\n\n')
         .trim();
+
+    if (detectPromptMode(text, mode) === 'prose') {
+        text = text.replace(/[ \t]{3,}/g, ' ');
+    }
 
     return {
         sanitized: text,
