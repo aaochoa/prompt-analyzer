@@ -32,13 +32,15 @@ function formatResult(label, promptText, result) {
   console.log(`\n=== ${label} ===`);
   console.log(`prompt:\n${promptText}`);
   console.log(
-    `valid=${result.valid} | action=${result.action} | riskScore=${result.riskScore} | mode=${result.metrics.detectedMode} | tokens=${result.metrics.tokenCount} | duration=${result.metrics.durationMs.toFixed(2)}ms`
+    `valid=${result.valid} | action=${result.action} | riskScore=${result.riskScore} | mode=${result.metrics.detectedMode} | tokens=${result.metrics.tokenCount} | duration=${result.metrics.durationMs.toFixed(2)}ms`,
   );
 
   if (result.findings.length > 0) {
     console.log('findings:');
     for (const finding of result.findings) {
-      console.log(`  - [${finding.severity}] (${finding.ruleId}/${finding.code}) ${finding.message}`);
+      console.log(
+        `  - [${finding.severity}] (${finding.ruleId}/${finding.code}) ${finding.message}`,
+      );
     }
   } else {
     console.log('findings: none');
@@ -59,13 +61,15 @@ const SAMPLE_CASES = [
   },
   {
     label: '2. Technical Spanglish prompt',
-    prompt: 'Necesito optimizar el endpoint de checkout porque el query en Postgres hace timeout en producción.',
+    prompt:
+      'Necesito optimizar el endpoint de checkout porque el query en Postgres hace timeout en producción.',
     config: {},
     expectedAction: 'allow',
   },
   {
     label: '3. Code snippet (auto mode)',
-    prompt: '```ts\nexport function sum(a: number, b: number): number {\n  return a + b;\n}\n```\n¿Cómo puedo agregar tests unitarios para esta función?',
+    prompt:
+      '```ts\nexport function sum(a: number, b: number): number {\n  return a + b;\n}\n```\n¿Cómo puedo agregar tests unitarios para esta función?',
     config: {},
     expectedAction: 'allow',
   },
@@ -119,7 +123,8 @@ const SAMPLE_CASES = [
   },
   {
     label: '10. Unrendered template placeholders',
-    prompt: 'Actúa como {{ROL}}. Resume este texto en 3 puntos: [pega aquí el contenido del correo]',
+    prompt:
+      'Actúa como {{ROL}}. Resume este texto en 3 puntos: [pega aquí el contenido del correo]',
     config: {},
     expectedAction: 'warn',
   },
@@ -133,20 +138,23 @@ const SAMPLE_CASES = [
   },
   {
     label: '12. Leaked secret / private key header',
-    prompt: 'Ayúdame a depurar este error de conexión:\n-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA1234567890',
+    prompt:
+      'Ayúdame a depurar este error de conexión:\n-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA1234567890',
     config: {},
     expectedAction: 'block',
   },
 
   {
     label: '13. Leaked Postgres connection URI with credentials',
-    prompt: 'Revisa este error de conexión: postgres://admin:SuperSecret987@db.internal.example.com:5432/prod_db',
+    prompt:
+      'Revisa este error de conexión: postgres://admin:SuperSecret987@db.internal.example.com:5432/prod_db',
     config: {},
     expectedAction: 'block',
   },
   {
     label: '14. Leaked Anthropic API key',
-    prompt: 'Mi script falla con esta clave: sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEF',
+    prompt:
+      'Mi script falla con esta clave: sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEF',
     config: {},
     expectedAction: 'block',
   },
@@ -212,7 +220,8 @@ const SAMPLE_CASES = [
   // --- Additional Edge Cases & Gap Probes ---
   {
     label: '23. Spanish without accents (real-world typing)',
-    prompt: 'Explicame como funciona la paginacion por cursor en Postgres y que indices deberia crear.',
+    prompt:
+      'Explicame como funciona la paginacion por cursor en Postgres y que indices deberia crear.',
     config: {},
     expectedAction: 'allow',
   },
@@ -252,7 +261,8 @@ const SAMPLE_CASES = [
   },
   {
     label: '29. Stripe live key + Bearer token leak',
-    prompt: 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+    prompt:
+      'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
     config: {},
     expectedAction: 'block',
   },
@@ -264,7 +274,8 @@ const SAMPLE_CASES = [
   },
   {
     label: '31. Token budget exceeded',
-    prompt: 'Explícame paso a paso cómo configurar un cluster de Kubernetes con alta disponibilidad y balanceo de carga.',
+    prompt:
+      'Explícame paso a paso cómo configurar un cluster de Kubernetes con alta disponibilidad y balanceo de carga.',
     config: { maxTokens: 10 },
     expectedAction: 'block',
   },
@@ -305,13 +316,13 @@ for (const testCase of SAMPLE_CASES) {
 
   if (result.action !== testCase.expectedAction) {
     failures += 1;
-    console.error(
-      `  [FAIL] Expected action "${testCase.expectedAction}", got "${result.action}"`
-    );
+    console.error(`  [FAIL] Expected action "${testCase.expectedAction}", got "${result.action}"`);
   }
 }
 
-console.log(`\nSummary: ${SAMPLE_CASES.length - failures}/${SAMPLE_CASES.length} sample checks matched expected action.`);
+console.log(
+  `\nSummary: ${SAMPLE_CASES.length - failures}/${SAMPLE_CASES.length} sample checks matched expected action.`,
+);
 
 if (failures > 0) {
   process.exit(1);

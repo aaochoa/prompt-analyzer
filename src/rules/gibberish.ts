@@ -102,7 +102,8 @@ export const gibberishRule: AnalyzerRule = {
             code: 'GIBBERISH_KEYBOARD_MASH',
             ruleId: 'gibberish',
             severity: 'block',
-            message: 'El texto contiene secuencias de consonantes improbables (posible texto aleatorio).',
+            message:
+              'El texto contiene secuencias de consonantes improbables (posible texto aleatorio).',
           });
         }
       }

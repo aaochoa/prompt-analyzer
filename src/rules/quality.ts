@@ -30,7 +30,7 @@ const FILLER_WORDS = new Set([
 
 const MUSTACHE_OR_ANGLE_PLACEHOLDER_RE =
   /(?:\{\{\s*[\p{L}_][\p{L}\p{N}_.-]*\s*\}\}|<(?:INSERT|TU|YOUR)[_ ][\p{L}_ ]+>)/u;
-const BRACKET_SEGMENT_RE = /\[([^\[\]\n]{2,120})\]/gu;
+const BRACKET_SEGMENT_RE = /\[([^[\n\]]{2,120})\]/gu;
 const ALLOWED_BRACKET_MARKER_RE = /^(?:FALTA|SUPUESTO|PENDIENTE|REDACTED_[A-Z_]+)\b/iu;
 const UPPERCASE_BRACKET_PLACEHOLDER_RE = /^(?:INSERT|TU|YOUR)[_ ][\p{L}_ ]+$/u;
 const SPANISH_TEMPLATE_PLACEHOLDER_RE =

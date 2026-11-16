@@ -1,11 +1,7 @@
 import type { AnalyzerRule, Finding, PromptContext, Severity } from '../types.js';
 
 export type StructurePillarId =
-  | 'roleOrTask'
-  | 'context'
-  | 'objectiveOrProcess'
-  | 'outputFormat'
-  | 'constraints';
+  'roleOrTask' | 'context' | 'objectiveOrProcess' | 'outputFormat' | 'constraints';
 
 interface StructurePillar {
   id: StructurePillarId;

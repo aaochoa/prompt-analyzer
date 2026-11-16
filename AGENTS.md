@@ -90,6 +90,7 @@ When writing or modifying rules, always follow these practices:
 ## Testing & Verification
 
 Every new rule, bug fix, or threshold change must include unit tests in `tests/` covering:
+
 1. Valid Spanish prompts (with and without accents, plus technical Spanglish).
 2. Edge cases (empty strings, invisible/bidi characters, code blocks).
 3. Positive detections (gibberish, PII/secrets, ES & EN prompt injections, token limits).
@@ -101,5 +102,7 @@ Every new rule, bug fix, or threshold change must include unit tests in `tests/`
 pnpm install      # Install dependencies
 pnpm typecheck    # Run TypeScript type checking (tsc --noEmit)
 pnpm test         # Run Vitest unit & integration tests
+pnpm run lint     # Run ESLint
+pnpm run format   # Format code with Prettier
 pnpm build        # Build ESM + CJS + .d.ts bundles into dist/
 ```
