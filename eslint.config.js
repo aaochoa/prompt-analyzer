@@ -4,29 +4,29 @@ import eslintConfigPrettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default tseslint.config(
-  {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '*.log'],
-  },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommended,
-  eslintConfigPrettier,
-  {
-    languageOptions: {
-      globals: {
-        ...globals.node,
-        ...globals.es2022,
-      },
+    {
+        ignores: ['dist/**', 'node_modules/**', 'coverage/**', '*.log'],
     },
-    rules: {
-      'no-control-regex': 'off',
-      '@typescript-eslint/no-unused-vars': [
-        'warn',
-        {
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
+    eslint.configs.recommended,
+    ...tseslint.configs.recommended,
+    eslintConfigPrettier,
+    {
+        languageOptions: {
+            globals: {
+                ...globals.node,
+                ...globals.es2022,
+            },
         },
-      ],
-      '@typescript-eslint/no-explicit-any': 'warn',
+        rules: {
+            'no-control-regex': 'off',
+            '@typescript-eslint/no-unused-vars': [
+                'warn',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                },
+            ],
+            '@typescript-eslint/no-explicit-any': 'warn',
+        },
     },
-  },
 );
