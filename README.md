@@ -1,5 +1,10 @@
 # prompt-analizer
 
+[![npm version](https://img.shields.io/npm/v/prompt-analizer.svg)](https://www.npmjs.com/package/prompt-analizer)
+[![Node.js](https://img.shields.io/node/v/prompt-analizer.svg)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
 Deterministic, **zero-AI-call** prompt analyzer and validator for LLMs, tuned for **Spanish** and bilingual (**ES/EN**) inputs.
 
 `prompt-analizer` validates, sanitizes, and scores user prompts **before** they reach your LLM—running 100% locally and offline in just a few milliseconds.
