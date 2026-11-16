@@ -62,9 +62,9 @@ When writing or modifying rules, always follow these practices:
 
 1. **Never use `[a-zA-Z]` alone** for letter or word matching. Always use Unicode property escapes (`\p{L}`, `\p{N}`, `\p{M}`) with the `/u` flag so `ñ`, `á`, `é`, `í`, `ó`, `ú`, `ü`, `¿`, and `¡` work correctly.
 2. **Preserve accents in `sanitizedPrompt`, strip them in `matchText`**:
-   - Users often omit tildes (`"como hacer"` vs `"cómo hacer"`, `"ignora"` vs `"ignóra"`).
-   - Match keywords and injection phrases against `ctx.matchText` (NFD-decomposed, `\p{M}` removed, lowercased).
-   - Never mutate accents in `ctx.sanitizedPrompt`.
+    - Users often omit tildes (`"como hacer"` vs `"cómo hacer"`, `"ignora"` vs `"ignóra"`).
+    - Match keywords and injection phrases against `ctx.matchText` (NFD-decomposed, `\p{M}` removed, lowercased).
+    - Never mutate accents in `ctx.sanitizedPrompt`.
 3. **Never estimate Spanish tokens by word count**: Spanish uses ~20–40% more BPE tokens per word than English due to verb conjugations, articles, and accents. Always use `ctx.tokenCount` from `src/tokenizer.ts`.
 4. **Respect `mode: 'code' | 'prose' | 'auto'`**: Technical Spanish prompts often embed code snippets, JSON, or English terms (`deploy`, `API`, `endpoint`). Do not penalize high symbol ratios or English technical vocabulary when code is detected or `mode === 'code'`.
 
@@ -74,13 +74,13 @@ When writing or modifying rules, always follow these practices:
 
 - **TypeScript Strictness**: `strict: true` and `noUncheckedIndexedAccess: true` are enabled in `tsconfig.json`. Handle `undefined` array/match accesses explicitly.
 - **Pure, Stateless Rules**: Each rule in `src/rules/` must implement `AnalyzerRule`:
-  ```ts
-  export interface AnalyzerRule {
-    id: string;
-    run(ctx: PromptContext): RuleOutput | void;
-  }
-  ```
-  Rules should not mutate shared global state or perform I/O.
+    ```ts
+    export interface AnalyzerRule {
+        id: string;
+        run(ctx: PromptContext): RuleOutput | void;
+    }
+    ```
+    Rules should not mutate shared global state or perform I/O.
 - **Keep Rules Focused & Small**: One concern per file in `src/rules/`. Share common helpers (e.g., Shannon entropy, Luhn check) rather than duplicating logic.
 - **ReDoS Safety**: Avoid nested quantifiers in regexes (e.g., `(a+)+`). All regexes run on untrusted user input and must execute in linear time.
 - **Public API**: Export all public types, rule factories, `PromptAnalyzer`, `createPromptAnalyzer`, and `analyzePrompt` from `src/index.ts`.
@@ -90,6 +90,7 @@ When writing or modifying rules, always follow these practices:
 ## Testing & Verification
 
 Every new rule, bug fix, or threshold change must include unit tests in `tests/` covering:
+
 1. Valid Spanish prompts (with and without accents, plus technical Spanglish).
 2. Edge cases (empty strings, invisible/bidi characters, code blocks).
 3. Positive detections (gibberish, PII/secrets, ES & EN prompt injections, token limits).
@@ -101,5 +102,7 @@ Every new rule, bug fix, or threshold change must include unit tests in `tests/`
 pnpm install      # Install dependencies
 pnpm typecheck    # Run TypeScript type checking (tsc --noEmit)
 pnpm test         # Run Vitest unit & integration tests
+pnpm run lint     # Run ESLint
+pnpm run format   # Format code with Prettier
 pnpm build        # Build ESM + CJS + .d.ts bundles into dist/
 ```
