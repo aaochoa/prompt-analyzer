@@ -129,5 +129,13 @@ export function sum(a: number, b: number) {
             expect(result.action).toBe('allow');
             expect(result.findings).toHaveLength(0);
         });
+
+        it('does not false-positive REPEATED_PHRASE_PADDING on short overlapping periodic strings', () => {
+            const prompt =
+                'Por favor revisa el identificador abababababababababababab en el registro de auditoría y confirma si corresponde a una sesión válida, un token expirado o un error de migración en la base de datos.';
+            const result = analyzePrompt(prompt);
+
+            expect(result.findings.some((f) => f.code === 'REPEATED_PHRASE_PADDING')).toBe(false);
+        });
     });
 });

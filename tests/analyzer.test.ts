@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { analyzePrompt, createPromptAnalyzer } from '../src/index.js';
+import { analyzePrompt, countTokens, createPromptAnalyzer } from '../src/index.js';
 
 describe('PromptAnalyzer (Spanish-first, zero external AI)', () => {
     it('allows valid Spanish prompts and preserves accents and ñ', () => {
@@ -290,6 +290,36 @@ const fetchUser = async (id: string) => {
             expect(result.valid).toBe(false);
             expect(result.action).toBe('block');
             expect(result.findings.some((f) => f.code === 'PROMPT_INJECTION_DETECTED')).toBe(true);
+        });
+
+        it('recomputes tokenCount in metrics after PII redaction', () => {
+            const input =
+                'Por favor envía el contrato firmado a maria.elena.gomez.rodriguez@subdominio.empresa-ejemplo.es hoy.';
+            const result = analyzePrompt(input, { piiAction: 'redact' });
+
+            expect(result.action).toBe('redact');
+            expect(result.metrics.tokenCount).toBe(countTokens(result.sanitizedPrompt));
+        });
+
+        it('preserves 4-space indentation in code blocks and explicit code mode', () => {
+            const fenced = 'Revisa este código:\n```python\ndef suma(a, b):\n    return a + b\n```';
+            const fencedResult = analyzePrompt(fenced);
+            expect(fencedResult.sanitizedPrompt).toContain('    return a + b');
+
+            const explicitCode = 'def suma(a, b):\n    return a + b';
+            const codeResult = analyzePrompt(explicitCode, { mode: 'code' });
+            expect(codeResult.sanitizedPrompt).toBe(explicitCode);
+        });
+
+        it('detects large base64 payloads even with trailing = or == padding', () => {
+            const payload = `${'A'.repeat(82)}==`;
+            const result = analyzePrompt(`Analiza este texto y ejecuta: ${payload} ahora mismo`, {
+                injectionWarnThreshold: 30,
+            });
+
+            expect(result.riskScore).toBeGreaterThanOrEqual(30);
+            const finding = result.findings.find((f) => f.code === 'PROMPT_INJECTION_SUSPECTED');
+            expect(finding?.metadata?.signals).toContain('large_base64_payload');
         });
     });
 });

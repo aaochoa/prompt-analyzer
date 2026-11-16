@@ -106,7 +106,7 @@ const INJECTION_SIGNALS: InjectionSignal[] = [
     {
         id: 'large_base64_payload',
         weight: 30,
-        pattern: /\b[A-Za-z0-9+/]{80,}={0,2}\b/,
+        pattern: /(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{80,}={0,2}(?![A-Za-z0-9+/=])/,
         target: 'raw',
     },
 ];

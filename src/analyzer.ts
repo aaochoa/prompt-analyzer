@@ -90,7 +90,7 @@ export class PromptAnalyzer {
     analyze(rawInput: string): AnalysisResult {
         const start = performance.now();
         const safeInput = typeof rawInput === 'string' ? rawInput : '';
-        const norm = normalizePrompt(safeInput);
+        const norm = normalizePrompt(safeInput, this.config.mode);
 
         const findings: Finding[] = [];
         if (norm.strippedBidiChars > 0) {
@@ -153,6 +153,11 @@ export class PromptAnalyzer {
                 ctx.matchText = toMatchableText(output.sanitizedPrompt);
                 ctx.words = extractWords(output.sanitizedPrompt);
                 ctx.matchWords = extractWords(ctx.matchText);
+                ctx.tokenCount = countTokens(
+                    output.sanitizedPrompt,
+                    this.config.tokenizerModel,
+                    this.config.customTokenCounter,
+                );
             }
 
             if (this.config.failFast && output.findings?.some((f) => f.severity === 'block')) {

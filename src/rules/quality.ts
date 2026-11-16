@@ -71,14 +71,21 @@ function hasRepeatedSubstringPadding(matchText: string): boolean {
     if (matchText.length < PADDING_SUBSTRING_LENGTH * PADDING_MAX_REPEATS) {
         return false;
     }
-    const counts = new Map<string, number>();
+    const seen = new Map<string, { count: number; lastEnd: number }>();
     for (let i = 0; i <= matchText.length - PADDING_SUBSTRING_LENGTH; i += 1) {
         const slice = matchText.slice(i, i + PADDING_SUBSTRING_LENGTH);
-        const next = (counts.get(slice) ?? 0) + 1;
-        if (next >= PADDING_MAX_REPEATS) {
-            return true;
+        const existing = seen.get(slice);
+        if (!existing) {
+            seen.set(slice, { count: 1, lastEnd: i + PADDING_SUBSTRING_LENGTH });
+            continue;
         }
-        counts.set(slice, next);
+        if (i >= existing.lastEnd) {
+            existing.count += 1;
+            existing.lastEnd = i + PADDING_SUBSTRING_LENGTH;
+            if (existing.count >= PADDING_MAX_REPEATS) {
+                return true;
+            }
+        }
     }
     return false;
 }
