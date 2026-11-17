@@ -1,4 +1,5 @@
 import { getFindingMessage } from '../i18n.js';
+import { toMatchableText } from '../normalize.js';
 import type { AnalyzerRule, Finding, PromptContext } from '../types.js';
 import { isFuzzyWordMatch } from '../utils.js';
 
@@ -268,6 +269,32 @@ function detectFuzzyBilingualJailbreak(words: string[]): boolean {
     return false;
 }
 
+const BASE64_CANDIDATE_RE = /(?<![A-Za-z0-9+/=])[A-Za-z0-9+/]{24,}={0,2}(?![A-Za-z0-9+/=])/g;
+
+function decodePrintableBase64Payloads(text: string): string[] {
+    const decodedList: string[] = [];
+    const matches = text.match(BASE64_CANDIDATE_RE);
+    if (!matches) {
+        return decodedList;
+    }
+
+    for (const token of matches.slice(0, 5)) {
+        if (token.length % 4 !== 0) {
+            continue;
+        }
+        const decoded = Buffer.from(token, 'base64').toString('utf8');
+        if (decoded.length < 12 || decoded.includes('\uFFFD')) {
+            continue;
+        }
+        const printableCount = (decoded.match(/[\p{L}\p{N}\p{P}\p{S}\s]/gu) ?? []).length;
+        if (printableCount / decoded.length >= 0.85) {
+            decodedList.push(decoded);
+        }
+    }
+
+    return decodedList;
+}
+
 export const injectionRule: AnalyzerRule = {
     id: 'injection',
     run(ctx: PromptContext) {
@@ -288,6 +315,33 @@ export const injectionRule: AnalyzerRule = {
         }
 
         const matchedSet = new Set(matchedSignals);
+
+        if (ctx.mode !== 'code') {
+            const decodedPayloads = decodePrintableBase64Payloads(ctx.sanitizedPrompt);
+            for (const decoded of decodedPayloads) {
+                const decodedMatchText = toMatchableText(decoded);
+                let foundInDecoded = false;
+                for (const signal of INJECTION_SIGNALS) {
+                    if (signal.id === 'large_base64_payload') {
+                        continue;
+                    }
+                    const targetText = signal.target === 'match' ? decodedMatchText : decoded;
+                    if (signal.pattern.test(targetText)) {
+                        foundInDecoded = true;
+                        if (!matchedSet.has(signal.id)) {
+                            score += signal.weight;
+                            matchedSet.add(signal.id);
+                            matchedSignals.push(signal.id);
+                        }
+                    }
+                }
+                if (foundInDecoded && !matchedSet.has('base64_decoded_injection')) {
+                    score += 20;
+                    matchedSet.add('base64_decoded_injection');
+                    matchedSignals.push('base64_decoded_injection');
+                }
+            }
+        }
         if (
             !matchedSet.has('es_override_instructions') &&
             !matchedSet.has('en_override_instructions') &&

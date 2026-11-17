@@ -1,13 +1,13 @@
-# prompt-analizer
+# prompt-analyzer
 
-[![npm version](https://img.shields.io/npm/v/prompt-analizer.svg)](https://www.npmjs.com/package/prompt-analizer)
-[![Node.js](https://img.shields.io/node/v/prompt-analizer.svg)](https://nodejs.org/)
+[![npm version](https://img.shields.io/npm/v/prompt-analyzer.svg)](https://www.npmjs.com/package/prompt-analyzer)
+[![Node.js](https://img.shields.io/node/v/prompt-analyzer.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
 Deterministic, **zero-AI-call** prompt analyzer and validator for LLMs, tuned for **Spanish** and bilingual (**ES/EN**) inputs.
 
-`prompt-analizer` validates, sanitizes, and scores user prompts **before** they reach your LLM—running 100% locally and offline in just a few milliseconds.
+`prompt-analyzer` validates, sanitizes, and scores user prompts **before** they reach your LLM—running 100% locally and offline in just a few milliseconds.
 
 ## Features
 
@@ -26,9 +26,9 @@ Deterministic, **zero-AI-call** prompt analyzer and validator for LLMs, tuned fo
 Requires **Node.js >= 20**.
 
 ```bash
-pnpm add prompt-analizer
+pnpm add prompt-analyzer
 # or
-npm install prompt-analizer
+npm install prompt-analyzer
 ```
 
 ## Quick Start
@@ -36,7 +36,7 @@ npm install prompt-analizer
 ### One-off analysis
 
 ```ts
-import { analyzePrompt } from 'prompt-analizer';
+import { analyzePrompt } from 'prompt-analyzer';
 
 const result = analyzePrompt(
     'Resume este contrato y envía las conclusiones a ana.gomez@empresa.com',
@@ -53,7 +53,7 @@ console.log(result.metrics); // { charCount, wordCount, tokenCount, durationMs, 
 For hot paths or custom configuration, instantiate `PromptAnalyzer` (or `createPromptAnalyzer`) once and optionally warm up the tokenizer at startup:
 
 ```ts
-import { createPromptAnalyzer, warmupTokenizer } from 'prompt-analizer';
+import { createPromptAnalyzer, warmupTokenizer } from 'prompt-analyzer';
 
 warmupTokenizer('gpt-4o');
 
@@ -87,7 +87,7 @@ All options in `PromptAnalyzerConfig` are optional:
 | `tokenizerModel`          | `TiktokenModel`                   | `'gpt-4o'`  | Model encoding passed to `js-tiktoken`.                           |
 | `customTokenCounter`      | `(text: string) => number`        | `undefined` | Custom token-counting function (overrides `js-tiktoken`).         |
 | `mode`                    | `'prose' \| 'code' \| 'auto'`     | `'auto'`    | Controls whether symbol/code heuristics are relaxed.              |
-| `language`                | `'es' \| 'en' \| 'auto'`          | `'es'`      | Target language hint for rules.                                   |
+| `language`                | `'es' \| 'en' \| 'auto'`          | `'auto'`    | Target language hint for rules.                                   |
 | `piiAction`               | `'redact' \| 'block' \| 'warn'`   | `'redact'`  | Action when PII (emails, phones, cards, regional IDs) is found.   |
 | `secretsAction`           | `'block' \| 'redact' \| 'warn'`   | `'block'`   | Action when secrets (API keys, JWTs, private keys) are found.     |
 | `enableRegionalIds`       | `boolean`                         | `false`     | Enables regional ID detection in `secrets-pii`.                   |
@@ -144,7 +144,7 @@ interface AnalysisResult {
 Implement `AnalyzerRule` to add domain-specific checks:
 
 ```ts
-import { createPromptAnalyzer, type AnalyzerRule } from 'prompt-analizer';
+import { createPromptAnalyzer, type AnalyzerRule } from 'prompt-analyzer';
 
 const noInternalCodenameRule: AnalyzerRule = {
     id: 'no-codenames',

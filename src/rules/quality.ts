@@ -43,6 +43,153 @@ const FILLER_WORDS = new Set([
 
 const FILLER_WORDS_LIST = [...FILLER_WORDS];
 
+const VAGUE_STOP_AND_DEICTIC_WORDS = new Set([
+    // Spanish pronouns, determiners, prepositions, generic nouns & auxiliaries
+    'el',
+    'la',
+    'los',
+    'las',
+    'un',
+    'una',
+    'unos',
+    'unas',
+    'lo',
+    'le',
+    'les',
+    'me',
+    'te',
+    'se',
+    'nos',
+    'mi',
+    'mis',
+    'tu',
+    'tus',
+    'su',
+    'sus',
+    'de',
+    'del',
+    'al',
+    'en',
+    'con',
+    'para',
+    'por',
+    'sobre',
+    'acerca',
+    'y',
+    'o',
+    'a',
+    'esto',
+    'eso',
+    'aquello',
+    'este',
+    'esta',
+    'ese',
+    'esa',
+    'algo',
+    'nada',
+    'todo',
+    'cosa',
+    'cosas',
+    'tema',
+    'asunto',
+    'informacion',
+    'info',
+    'detalles',
+    'mas',
+    'mejor',
+    'favor',
+    'puedes',
+    'podrias',
+    'necesito',
+    'quiero',
+    'como',
+    'que',
+    'cual',
+    // English pronouns, determiners, prepositions, generic nouns & auxiliaries
+    'the',
+    'a',
+    'an',
+    'it',
+    'this',
+    'that',
+    'these',
+    'those',
+    'something',
+    'anything',
+    'everything',
+    'stuff',
+    'thing',
+    'things',
+    'topic',
+    'details',
+    'more',
+    'better',
+    'with',
+    'for',
+    'about',
+    'on',
+    'in',
+    'to',
+    'of',
+    'and',
+    'or',
+    'my',
+    'your',
+    'me',
+    'some',
+    'any',
+    'can',
+    'you',
+    'could',
+    'would',
+    'need',
+    'want',
+    'how',
+    'what',
+    'which',
+    // Generic request verbs without domain specificity
+    'ayuda',
+    'ayudame',
+    'ayudar',
+    'haz',
+    'hazme',
+    'hacer',
+    'revisa',
+    'mejora',
+    'cambia',
+    'explica',
+    'explicame',
+    'dime',
+    'dame',
+    'muestra',
+    'resume',
+    'analiza',
+    'arregla',
+    'corrige',
+    'crea',
+    'genera',
+    'escribe',
+    'help',
+    'fix',
+    'improve',
+    'do',
+    'make',
+    'check',
+    'review',
+    'explain',
+    'tell',
+    'give',
+    'show',
+    'summarize',
+    'analyze',
+    'update',
+    'change',
+    'create',
+    'write',
+]);
+
+const MAX_WORDS_FOR_VAGUENESS = 12;
+
 const MUSTACHE_OR_ANGLE_PLACEHOLDER_RE =
     /(?:\{\{\s*[\p{L}_][\p{L}\p{N}_.-]*\s*\}\}|<(?:INSERT|TU|YOUR)[_ ][\p{L}_ ]+>)/u;
 const BRACKET_SEGMENT_RE = /\[([^[\n\]]{2,120})\]/gu;
@@ -172,14 +319,37 @@ export const qualityRule: AnalyzerRule = {
         }
 
         // 3. Pure greeting / filler without an actionable request (misspelling-aware)
+        let isPureFiller = false;
         if (mode === 'prose' && fuzzyWords.length > 0 && fuzzyWords.length <= 5) {
             const hasMeaningfulWord = fuzzyWords.some((word) => !isFillerWord(word));
             if (!hasMeaningfulWord) {
+                isPureFiller = true;
                 findings.push({
                     code: 'LOW_INTENT_FILLER',
                     ruleId: 'quality',
                     severity: 'warn',
                     message: getFindingMessage('LOW_INTENT_FILLER', detectedLanguage),
+                });
+            }
+        }
+
+        // 3b. Vague / directionless short-to-medium prose (only generic verbs/pronouns, no concrete topic)
+        if (
+            mode === 'prose' &&
+            !isPureFiller &&
+            matchWords.length >= 2 &&
+            matchWords.length <= MAX_WORDS_FOR_VAGUENESS &&
+            !/[\d`"]/.test(sanitizedPrompt)
+        ) {
+            const hasConcreteTopic = matchWords.some(
+                (word) => !FILLER_WORDS.has(word) && !VAGUE_STOP_AND_DEICTIC_WORDS.has(word),
+            );
+            if (!hasConcreteTopic) {
+                findings.push({
+                    code: 'VAGUE_PROMPT',
+                    ruleId: 'quality',
+                    severity: 'warn',
+                    message: getFindingMessage('VAGUE_PROMPT', detectedLanguage),
                 });
             }
         }
