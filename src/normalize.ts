@@ -1,4 +1,4 @@
-import type { PromptMode } from './types.js';
+import type { DetectedLanguage, PromptLanguage, PromptMode } from './types.js';
 
 // Null bytes and ASCII control chars except \t (0x09), \n (0x0A), \r (0x0D)
 const CONTROL_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
@@ -10,6 +10,7 @@ const BIDI_OVERRIDE_RE = /[\u202A-\u202E\u2066-\u2069]/g;
 export interface NormalizationResult {
     sanitized: string;
     matchText: string;
+    fuzzyMatchText: string;
     strippedControlChars: number;
     strippedZeroWidthChars: number;
     strippedBidiChars: number;
@@ -50,9 +51,11 @@ export function normalizePrompt(rawInput: string, mode: PromptMode = 'auto'): No
         text = text.replace(/[ \t]{3,}/g, ' ');
     }
 
+    const matchText = toMatchableText(text);
     return {
         sanitized: text,
-        matchText: toMatchableText(text),
+        matchText,
+        fuzzyMatchText: toFuzzyMatchableText(matchText),
         strippedControlChars,
         strippedZeroWidthChars,
         strippedBidiChars,
@@ -128,11 +131,154 @@ export function toMatchableText(text: string): string {
         .toLowerCase();
 }
 
+const LEET_MAP: Record<string, string> = {
+    '0': 'o',
+    '1': 'i',
+    '3': 'e',
+    '4': 'a',
+    '5': 's',
+    '7': 't',
+    '@': 'a',
+    $: 's',
+};
+
+const LEET_TOKEN_RE = /[\p{L}013457@$]+/gu;
+const REPEATED_LETTER_STRETCH_RE = /(\p{L})\1{2,}/gu;
+
+/**
+ * Produces a leetspeak-folded, repetition-collapsed copy of already-matchable text
+ * for misspelling- and obfuscation-resilient matching.
+ */
+export function toFuzzyMatchableText(matchableText: string): string {
+    const deleeted = matchableText.replace(LEET_TOKEN_RE, (token) => {
+        if (!/\p{L}/u.test(token)) {
+            return token;
+        }
+        return token.replace(/[013457@$]/g, (ch) => LEET_MAP[ch] ?? ch);
+    });
+
+    return deleeted.replace(REPEATED_LETTER_STRETCH_RE, '$1');
+}
+
 /**
  * Extracts Unicode letter words (preserving Spanish ñ and accented vowels).
  */
 export function extractWords(text: string): string[] {
     return text.match(/\p{L}+/gu) ?? [];
+}
+
+const ES_STOP_WORDS = new Set([
+    'el',
+    'la',
+    'los',
+    'las',
+    'un',
+    'una',
+    'unos',
+    'unas',
+    'de',
+    'del',
+    'que',
+    'y',
+    'en',
+    'para',
+    'con',
+    'por',
+    'como',
+    'pero',
+    'tu',
+    'tus',
+    'mi',
+    'mis',
+    'es',
+    'son',
+    'esta',
+    'este',
+    'esto',
+    'sobre',
+    'sin',
+    'mas',
+    'haz',
+    'dame',
+    'explica',
+    'explicame',
+    'escribe',
+    'actua',
+    'hola',
+    'buenas',
+    'gracias',
+]);
+
+const EN_STOP_WORDS = new Set([
+    'the',
+    'is',
+    'are',
+    'was',
+    'were',
+    'and',
+    'to',
+    'of',
+    'in',
+    'for',
+    'with',
+    'you',
+    'your',
+    'that',
+    'this',
+    'from',
+    'how',
+    'what',
+    'write',
+    'act',
+    'please',
+    'about',
+    'all',
+    'not',
+    'do',
+    'can',
+    'hello',
+    'thanks',
+]);
+
+const SPANISH_SCRIPT_RE = /[ñáéíóúü¿¡]/iu;
+
+/**
+ * Deterministically detects whether a prompt is Spanish, English, or mixed (Spanglish).
+ */
+export function detectPromptLanguage(
+    matchWords: string[],
+    sanitizedText: string,
+    configuredLanguage: PromptLanguage,
+): DetectedLanguage {
+    if (configuredLanguage === 'es' || configuredLanguage === 'en') {
+        return configuredLanguage;
+    }
+
+    let esScore = SPANISH_SCRIPT_RE.test(sanitizedText) ? 2 : 0;
+    let enScore = 0;
+
+    for (const word of matchWords) {
+        if (ES_STOP_WORDS.has(word)) {
+            esScore += 1;
+        }
+        if (EN_STOP_WORDS.has(word)) {
+            enScore += 1;
+        }
+    }
+
+    if (
+        esScore >= 2 &&
+        enScore >= 2 &&
+        Math.min(esScore, enScore) / Math.max(esScore, enScore) >= 0.4
+    ) {
+        return 'mixed';
+    }
+
+    if (enScore > esScore) {
+        return 'en';
+    }
+
+    return 'es';
 }
 
 /**

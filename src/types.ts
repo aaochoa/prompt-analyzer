@@ -4,6 +4,7 @@ export type Severity = 'info' | 'warn' | 'redact' | 'block';
 export type AnalysisAction = 'allow' | 'warn' | 'redact' | 'block';
 export type PromptMode = 'prose' | 'code' | 'auto';
 export type PromptLanguage = 'es' | 'en' | 'auto';
+export type DetectedLanguage = 'es' | 'en' | 'mixed';
 export type StructureCheckMode = 'off' | 'advisory' | 'strict';
 
 export interface Finding {
@@ -32,6 +33,7 @@ export interface PromptAnalyzerConfig {
     disabledRules?: string[];
     customRules?: AnalyzerRule[];
     blockedTerms?: string[];
+    fuzzyBlockedTerms?: boolean;
     structureCheck?: StructureCheckMode;
     failFast?: boolean;
 }
@@ -53,6 +55,7 @@ export interface ResolvedPromptAnalyzerConfig {
     disabledRules: Set<string>;
     customRules: AnalyzerRule[];
     blockedTerms: string[];
+    fuzzyBlockedTerms: boolean;
     structureCheck: StructureCheckMode;
     failFast: boolean;
 }
@@ -61,11 +64,14 @@ export interface PromptContext {
     rawInput: string;
     sanitizedPrompt: string;
     matchText: string;
+    fuzzyMatchText: string;
     words: string[];
     matchWords: string[];
+    fuzzyWords: string[];
     tokenCount: number;
     mode: 'prose' | 'code';
     language: PromptLanguage;
+    detectedLanguage: DetectedLanguage;
     config: ResolvedPromptAnalyzerConfig;
 }
 
@@ -86,6 +92,7 @@ export interface AnalysisMetrics {
     tokenCount: number;
     durationMs: number;
     detectedMode: 'prose' | 'code';
+    detectedLanguage: DetectedLanguage;
 }
 
 export interface AnalysisResult {

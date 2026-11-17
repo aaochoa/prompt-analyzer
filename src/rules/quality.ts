@@ -1,5 +1,7 @@
-import { toMatchableText } from '../normalize.js';
+import { getFindingMessage } from '../i18n.js';
+import { toFuzzyMatchableText, toMatchableText } from '../normalize.js';
 import type { AnalyzerRule, Finding, PromptContext } from '../types.js';
+import { isFuzzyWordMatch } from '../utils.js';
 
 const FILLER_WORDS = new Set([
     'hola',
@@ -20,13 +22,26 @@ const FILLER_WORDS = new Set([
     'gracias',
     'muchas',
     'test',
+    'testing',
     'prueba',
     'probando',
     'si',
     'no',
+    'yes',
+    'nope',
     'ey',
     'alo',
+    'thanks',
+    'thank',
+    'please',
+    'morning',
+    'evening',
+    'bye',
+    'sure',
+    'cool',
 ]);
+
+const FILLER_WORDS_LIST = [...FILLER_WORDS];
 
 const MUSTACHE_OR_ANGLE_PLACEHOLDER_RE =
     /(?:\{\{\s*[\p{L}_][\p{L}\p{N}_.-]*\s*\}\}|<(?:INSERT|TU|YOUR)[_ ][\p{L}_ ]+>)/u;
@@ -35,6 +50,8 @@ const ALLOWED_BRACKET_MARKER_RE = /^(?:FALTA|SUPUESTO|PENDIENTE|REDACTED_[A-Z_]+
 const UPPERCASE_BRACKET_PLACEHOLDER_RE = /^(?:INSERT|TU|YOUR)[_ ][\p{L}_ ]+$/u;
 const SPANISH_TEMPLATE_PLACEHOLDER_RE =
     /^(?:pega |tu |que:|quien |en una |en dos |comparte |escribe |inserta |indica |pon |reemplaza |nombre |rol |una linea|paso propio|como quieres)/u;
+const ENGLISH_TEMPLATE_PLACEHOLDER_RE =
+    /^(?:paste |your |write |insert |enter |replace |describe |name |role |one line|two lines|step |topic\b)/u;
 
 const MIN_WORDS_FOR_PROSE_DIVERSITY = 25;
 const MIN_PROSE_UNIQUE_WORD_RATIO = 0.45;
@@ -59,7 +76,11 @@ function hasUnrenderedPlaceholder(text: string): boolean {
         if (UPPERCASE_BRACKET_PLACEHOLDER_RE.test(inner)) {
             return true;
         }
-        if (SPANISH_TEMPLATE_PLACEHOLDER_RE.test(toMatchableText(inner))) {
+        const normalizedInner = toMatchableText(inner);
+        if (
+            SPANISH_TEMPLATE_PLACEHOLDER_RE.test(normalizedInner) ||
+            ENGLISH_TEMPLATE_PLACEHOLDER_RE.test(normalizedInner)
+        ) {
             return true;
         }
     }
@@ -90,13 +111,28 @@ function hasRepeatedSubstringPadding(matchText: string): boolean {
     return false;
 }
 
+function isFillerWord(word: string): boolean {
+    if (FILLER_WORDS.has(word)) {
+        return true;
+    }
+    return FILLER_WORDS_LIST.some((target) => isFuzzyWordMatch(word, target));
+}
+
 export const qualityRule: AnalyzerRule = {
     id: 'quality',
     run(ctx: PromptContext) {
         const findings: Finding[] = [];
-        const { sanitizedPrompt, matchText, matchWords, mode, config } = ctx;
+        const {
+            sanitizedPrompt,
+            matchText,
+            matchWords,
+            fuzzyWords,
+            mode,
+            config,
+            detectedLanguage,
+        } = ctx;
 
-        // 1. Custom blocked terms (accent-insensitive)
+        // 1. Custom blocked terms (accent-insensitive + optional fuzzy matching)
         if (config.blockedTerms.length > 0) {
             const matchedTerms: string[] = [];
             for (const rawTerm of config.blockedTerms) {
@@ -105,6 +141,13 @@ export const qualityRule: AnalyzerRule = {
                 const termRe = new RegExp(`(?<!\\p{L})${escapeRegex(term)}(?!\\p{L})`, 'u');
                 if (termRe.test(matchText)) {
                     matchedTerms.push(rawTerm);
+                    continue;
+                }
+                if (config.fuzzyBlockedTerms && !/\s/.test(term)) {
+                    const fuzzyTerm = toFuzzyMatchableText(term);
+                    if (fuzzyWords.some((word) => isFuzzyWordMatch(word, fuzzyTerm))) {
+                        matchedTerms.push(rawTerm);
+                    }
                 }
             }
             if (matchedTerms.length > 0) {
@@ -112,7 +155,7 @@ export const qualityRule: AnalyzerRule = {
                     code: 'BLOCKED_TERM_DETECTED',
                     ruleId: 'quality',
                     severity: 'block',
-                    message: 'El prompt contiene términos bloqueados por la política configurada.',
+                    message: getFindingMessage('BLOCKED_TERM_DETECTED', detectedLanguage),
                     metadata: { terms: matchedTerms },
                 });
             }
@@ -124,20 +167,19 @@ export const qualityRule: AnalyzerRule = {
                 code: 'UNRENDERED_PLACEHOLDER',
                 ruleId: 'quality',
                 severity: 'warn',
-                message: 'El prompt parece contener marcadores de plantilla sin reemplazar.',
+                message: getFindingMessage('UNRENDERED_PLACEHOLDER', detectedLanguage),
             });
         }
 
-        // 3. Pure greeting / filler without an actionable request
-        if (mode === 'prose' && matchWords.length > 0 && matchWords.length <= 5) {
-            const hasMeaningfulWord = matchWords.some((word) => !FILLER_WORDS.has(word));
+        // 3. Pure greeting / filler without an actionable request (misspelling-aware)
+        if (mode === 'prose' && fuzzyWords.length > 0 && fuzzyWords.length <= 5) {
+            const hasMeaningfulWord = fuzzyWords.some((word) => !isFillerWord(word));
             if (!hasMeaningfulWord) {
                 findings.push({
                     code: 'LOW_INTENT_FILLER',
                     ruleId: 'quality',
                     severity: 'warn',
-                    message:
-                        'El prompt solo contiene un saludo o texto de relleno sin una petición clara.',
+                    message: getFindingMessage('LOW_INTENT_FILLER', detectedLanguage),
                 });
             }
         }
@@ -154,7 +196,7 @@ export const qualityRule: AnalyzerRule = {
                     code: 'LOW_PROSE_DIVERSITY',
                     ruleId: 'quality',
                     severity: 'warn',
-                    message: 'El prompt tiene poca variedad de palabras para su longitud.',
+                    message: getFindingMessage('LOW_PROSE_DIVERSITY', detectedLanguage),
                     metadata: {
                         distinctWords,
                         uniqueRatio: Number(uniqueRatio.toFixed(3)),
@@ -165,7 +207,7 @@ export const qualityRule: AnalyzerRule = {
                     code: 'REPEATED_PHRASE_PADDING',
                     ruleId: 'quality',
                     severity: 'warn',
-                    message: 'El prompt repite fragmentos idénticos varias veces.',
+                    message: getFindingMessage('REPEATED_PHRASE_PADDING', detectedLanguage),
                 });
             }
         }

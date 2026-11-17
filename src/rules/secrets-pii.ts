@@ -1,3 +1,4 @@
+import { getFindingMessage, resolveUiLanguage } from '../i18n.js';
 import type { AnalyzerRule, Finding, PromptContext, Severity } from '../types.js';
 import { passesLuhnCheck, shannonEntropy } from '../utils.js';
 
@@ -65,6 +66,8 @@ export const secretsPiiRule: AnalyzerRule = {
         const findings: Finding[] = [];
         let sanitized = ctx.sanitizedPrompt;
         const { secretsAction, piiAction, enableRegionalIds } = ctx.config;
+        const { detectedLanguage } = ctx;
+        const uiLang = resolveUiLanguage(detectedLanguage);
 
         // 1. Secrets detection
         let fullPrivateKeyCount = 0;
@@ -93,7 +96,10 @@ export const secretsPiiRule: AnalyzerRule = {
                     code: pattern.code,
                     ruleId: 'secrets-pii',
                     severity: actionToSeverity(secretsAction),
-                    message: `Se detectó ${pattern.label} en el prompt (${matchCount}).`,
+                    message:
+                        uiLang === 'en'
+                            ? `Detected ${pattern.label} in the prompt (${matchCount}).`
+                            : `Se detectó ${pattern.label} en el prompt (${matchCount}).`,
                     metadata: { count: matchCount },
                 });
             }
@@ -110,7 +116,9 @@ export const secretsPiiRule: AnalyzerRule = {
                 code: 'PII_EMAIL_DETECTED',
                 ruleId: 'secrets-pii',
                 severity: actionToSeverity(piiAction),
-                message: `Se detectaron ${emailCount} correo(s) electrónico(s).`,
+                message: getFindingMessage('PII_EMAIL_DETECTED', detectedLanguage, {
+                    count: emailCount,
+                }),
                 metadata: { count: emailCount },
             });
         }
@@ -130,7 +138,9 @@ export const secretsPiiRule: AnalyzerRule = {
                 code: 'PII_CREDIT_CARD_DETECTED',
                 ruleId: 'secrets-pii',
                 severity: actionToSeverity(piiAction),
-                message: `Se detectaron ${cardCount} número(s) de tarjeta válidos.`,
+                message: getFindingMessage('PII_CREDIT_CARD_DETECTED', detectedLanguage, {
+                    count: cardCount,
+                }),
                 metadata: { count: cardCount },
             });
         }
@@ -150,7 +160,9 @@ export const secretsPiiRule: AnalyzerRule = {
                 code: 'PII_PHONE_DETECTED',
                 ruleId: 'secrets-pii',
                 severity: actionToSeverity(piiAction),
-                message: `Se detectaron ${phoneCount} número(s) de teléfono.`,
+                message: getFindingMessage('PII_PHONE_DETECTED', detectedLanguage, {
+                    count: phoneCount,
+                }),
                 metadata: { count: phoneCount },
             });
         }
@@ -179,7 +191,9 @@ export const secretsPiiRule: AnalyzerRule = {
                     code: 'PII_REGIONAL_ID_DETECTED',
                     ruleId: 'secrets-pii',
                     severity: actionToSeverity(piiAction),
-                    message: `Se detectaron ${idCount} documento(s) de identidad nacional.`,
+                    message: getFindingMessage('PII_REGIONAL_ID_DETECTED', detectedLanguage, {
+                        count: idCount,
+                    }),
                     metadata: { count: idCount },
                 });
             }

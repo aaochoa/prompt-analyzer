@@ -1,4 +1,6 @@
+import { getFindingMessage } from '../i18n.js';
 import type { AnalyzerRule, Finding, PromptContext } from '../types.js';
+import { isFuzzyWordMatch } from '../utils.js';
 
 interface InjectionSignal {
     id: string;
@@ -111,6 +113,161 @@ const INJECTION_SIGNALS: InjectionSignal[] = [
     },
 ];
 
+const OVERRIDE_VERBS = [
+    'ignora',
+    'descarta',
+    'anula',
+    'omite',
+    'saltate',
+    'olvida',
+    'ignore',
+    'disregard',
+    'override',
+    'bypass',
+    'forget',
+] as const;
+
+const OVERRIDE_TARGETS = [
+    'instrucciones',
+    'reglas',
+    'directrices',
+    'indicaciones',
+    'instructions',
+    'rules',
+    'directives',
+    'guidelines',
+] as const;
+
+const OVERRIDE_SCOPES = [
+    'anteriores',
+    'previas',
+    'previo',
+    'anterior',
+    'sistema',
+    'seguridad',
+    'previous',
+    'prior',
+    'system',
+    'safety',
+    'todas',
+    'todo',
+    'all',
+] as const;
+
+const LEAK_VERBS = [
+    'muestra',
+    'revela',
+    'imprime',
+    'dime',
+    'devuelve',
+    'copia',
+    'reveal',
+    'show',
+    'print',
+    'output',
+    'repeat',
+    'dump',
+] as const;
+
+const LEAK_SYSTEM_QUALIFIERS = [
+    'sistema',
+    'inicial',
+    'original',
+    'originales',
+    'internas',
+    'system',
+    'initial',
+    'hidden',
+    'original',
+] as const;
+
+function matchesAnyFuzzy(word: string, targets: readonly string[]): boolean {
+    return targets.some((target) => isFuzzyWordMatch(word, target));
+}
+
+function hasWindowMatch(
+    words: string[],
+    startIdx: number,
+    maxOffset: number,
+    targets: readonly string[],
+): number {
+    const limit = Math.min(words.length - 1, startIdx + maxOffset);
+    for (let j = startIdx + 1; j <= limit; j += 1) {
+        const w = words[j];
+        if (w !== undefined && matchesAnyFuzzy(w, targets)) {
+            return j;
+        }
+    }
+    return -1;
+}
+
+function detectFuzzyBilingualOverride(words: string[]): boolean {
+    for (let i = 0; i < words.length; i += 1) {
+        const verb = words[i];
+        if (verb === undefined || !matchesAnyFuzzy(verb, OVERRIDE_VERBS)) {
+            continue;
+        }
+        const targetIdx = hasWindowMatch(words, i, 6, OVERRIDE_TARGETS);
+        if (targetIdx === -1) {
+            continue;
+        }
+        const hasScopeAfterVerb = hasWindowMatch(words, i, 7, OVERRIDE_SCOPES) !== -1;
+        if (hasScopeAfterVerb) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function detectFuzzyBilingualLeak(words: string[]): boolean {
+    for (let i = 0; i < words.length; i += 1) {
+        const verb = words[i];
+        if (verb === undefined || !matchesAnyFuzzy(verb, LEAK_VERBS)) {
+            continue;
+        }
+        const promptOrInstrIdx = hasWindowMatch(words, i, 6, [
+            'prompt',
+            'instrucciones',
+            'instructions',
+        ]);
+        if (promptOrInstrIdx === -1) {
+            continue;
+        }
+        const windowStart = Math.max(i + 1, promptOrInstrIdx - 2);
+        const windowEnd = Math.min(words.length - 1, promptOrInstrIdx + 3);
+        for (let j = windowStart; j <= windowEnd; j += 1) {
+            const q = words[j];
+            if (q !== undefined && matchesAnyFuzzy(q, LEAK_SYSTEM_QUALIFIERS)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function detectFuzzyBilingualJailbreak(words: string[]): boolean {
+    for (let i = 0; i < words.length; i += 1) {
+        const word = words[i];
+        if (word === undefined) continue;
+        if (isFuzzyWordMatch(word, 'jailbreak') || isFuzzyWordMatch(word, 'godmode')) {
+            return true;
+        }
+        if (
+            (isFuzzyWordMatch(word, 'modo') || isFuzzyWordMatch(word, 'mode')) &&
+            hasWindowMatch(words, i, 2, ['desarrollador', 'developer']) !== -1
+        ) {
+            return true;
+        }
+        if (
+            (word === 'sin' || isFuzzyWordMatch(word, 'without')) &&
+            hasWindowMatch(words, i, 2, ['restricciones', 'restrictions']) !== -1
+        ) {
+            return true;
+        }
+    }
+    return false;
+}
+
 export const injectionRule: AnalyzerRule = {
     id: 'injection',
     run(ctx: PromptContext) {
@@ -130,6 +287,35 @@ export const injectionRule: AnalyzerRule = {
             }
         }
 
+        const matchedSet = new Set(matchedSignals);
+        if (
+            !matchedSet.has('es_override_instructions') &&
+            !matchedSet.has('en_override_instructions') &&
+            detectFuzzyBilingualOverride(ctx.fuzzyWords)
+        ) {
+            score += 55;
+            matchedSignals.push('bilingual_fuzzy_override');
+        }
+
+        if (
+            !matchedSet.has('es_system_prompt_leak') &&
+            !matchedSet.has('es_instructions_leak') &&
+            !matchedSet.has('en_system_prompt_leak') &&
+            detectFuzzyBilingualLeak(ctx.fuzzyWords)
+        ) {
+            score += 50;
+            matchedSignals.push('bilingual_fuzzy_prompt_leak');
+        }
+
+        if (
+            !matchedSet.has('es_jailbreak_mode') &&
+            !matchedSet.has('en_jailbreak_mode') &&
+            detectFuzzyBilingualJailbreak(ctx.fuzzyWords)
+        ) {
+            score += 35;
+            matchedSignals.push('bilingual_fuzzy_jailbreak');
+        }
+
         const cappedScore = Math.min(100, score);
         const { injectionWarnThreshold, injectionBlockThreshold } = ctx.config;
 
@@ -139,7 +325,7 @@ export const injectionRule: AnalyzerRule = {
                 ruleId: 'injection',
                 severity: 'block',
                 riskScore: cappedScore,
-                message: 'Se detectó un intento de inyección de instrucciones (prompt injection).',
+                message: getFindingMessage('PROMPT_INJECTION_DETECTED', ctx.detectedLanguage),
                 metadata: { signals: matchedSignals, score: cappedScore },
             });
         } else if (cappedScore >= injectionWarnThreshold) {
@@ -148,8 +334,7 @@ export const injectionRule: AnalyzerRule = {
                 ruleId: 'injection',
                 severity: 'warn',
                 riskScore: cappedScore,
-                message:
-                    'El prompt contiene patrones sospechosos de manipulación de instrucciones.',
+                message: getFindingMessage('PROMPT_INJECTION_SUSPECTED', ctx.detectedLanguage),
                 metadata: { signals: matchedSignals, score: cappedScore },
             });
         }

@@ -1,4 +1,12 @@
-import { detectPromptMode, extractWords, normalizePrompt, toMatchableText } from './normalize.js';
+import { getFindingMessage } from './i18n.js';
+import {
+    detectPromptLanguage,
+    detectPromptMode,
+    extractWords,
+    normalizePrompt,
+    toFuzzyMatchableText,
+    toMatchableText,
+} from './normalize.js';
 import { gibberishRule } from './rules/gibberish.js';
 import { injectionRule } from './rules/injection.js';
 import { lengthRule } from './rules/length.js';
@@ -44,7 +52,7 @@ function resolveConfig(config: PromptAnalyzerConfig = {}): ResolvedPromptAnalyze
         tokenizerModel: config.tokenizerModel ?? 'gpt-4o',
         customTokenCounter: config.customTokenCounter,
         mode: config.mode ?? 'auto',
-        language: config.language ?? 'es',
+        language: config.language ?? 'auto',
         piiAction: config.piiAction ?? 'redact',
         secretsAction: config.secretsAction ?? 'block',
         enableRegionalIds: config.enableRegionalIds ?? false,
@@ -53,6 +61,7 @@ function resolveConfig(config: PromptAnalyzerConfig = {}): ResolvedPromptAnalyze
         disabledRules: new Set(config.disabledRules ?? []),
         customRules: config.customRules ?? [],
         blockedTerms: config.blockedTerms ?? [],
+        fuzzyBlockedTerms: config.fuzzyBlockedTerms ?? true,
         structureCheck: config.structureCheck ?? 'off',
         failFast: config.failFast ?? false,
     };
@@ -92,13 +101,25 @@ export class PromptAnalyzer {
         const safeInput = typeof rawInput === 'string' ? rawInput : '';
         const norm = normalizePrompt(safeInput, this.config.mode);
 
+        const detectedMode = detectPromptMode(norm.sanitized, this.config.mode);
+        const words = extractWords(norm.sanitized);
+        const matchWords = extractWords(norm.matchText);
+        const fuzzyWords = extractWords(norm.fuzzyMatchText);
+        const detectedLanguage = detectPromptLanguage(
+            matchWords,
+            norm.sanitized,
+            this.config.language,
+        );
+
         const findings: Finding[] = [];
         if (norm.strippedBidiChars > 0) {
             findings.push({
                 code: 'BIDI_CHARS_STRIPPED',
                 ruleId: 'normalizer',
                 severity: 'warn',
-                message: `Se eliminaron ${norm.strippedBidiChars} caracteres bidireccionales ocultos.`,
+                message: getFindingMessage('BIDI_CHARS_STRIPPED', detectedLanguage, {
+                    count: norm.strippedBidiChars,
+                }),
                 metadata: { count: norm.strippedBidiChars },
             });
         } else if (norm.strippedControlChars > 0 || norm.strippedZeroWidthChars > 0) {
@@ -106,7 +127,7 @@ export class PromptAnalyzer {
                 code: 'INVISIBLE_CHARS_STRIPPED',
                 ruleId: 'normalizer',
                 severity: 'info',
-                message: 'Se limpiaron caracteres invisibles o de control del prompt.',
+                message: getFindingMessage('INVISIBLE_CHARS_STRIPPED', detectedLanguage),
                 metadata: {
                     controlChars: norm.strippedControlChars,
                     zeroWidthChars: norm.strippedZeroWidthChars,
@@ -114,7 +135,6 @@ export class PromptAnalyzer {
             });
         }
 
-        const detectedMode = detectPromptMode(norm.sanitized, this.config.mode);
         const tokenCount = countTokens(
             norm.sanitized,
             this.config.tokenizerModel,
@@ -125,11 +145,14 @@ export class PromptAnalyzer {
             rawInput: safeInput,
             sanitizedPrompt: norm.sanitized,
             matchText: norm.matchText,
-            words: extractWords(norm.sanitized),
-            matchWords: extractWords(norm.matchText),
+            fuzzyMatchText: norm.fuzzyMatchText,
+            words,
+            matchWords,
+            fuzzyWords,
             tokenCount,
             mode: detectedMode,
             language: this.config.language,
+            detectedLanguage,
             config: this.config,
         };
 
@@ -151,8 +174,10 @@ export class PromptAnalyzer {
             ) {
                 ctx.sanitizedPrompt = output.sanitizedPrompt;
                 ctx.matchText = toMatchableText(output.sanitizedPrompt);
+                ctx.fuzzyMatchText = toFuzzyMatchableText(ctx.matchText);
                 ctx.words = extractWords(output.sanitizedPrompt);
                 ctx.matchWords = extractWords(ctx.matchText);
+                ctx.fuzzyWords = extractWords(ctx.fuzzyMatchText);
                 ctx.tokenCount = countTokens(
                     output.sanitizedPrompt,
                     this.config.tokenizerModel,
@@ -180,6 +205,7 @@ export class PromptAnalyzer {
                 tokenCount: ctx.tokenCount,
                 durationMs,
                 detectedMode,
+                detectedLanguage,
             },
         };
     }
