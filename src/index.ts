@@ -1,5 +1,12 @@
 export { analyzePrompt, createPromptAnalyzer, DEFAULT_RULES, PromptAnalyzer } from './analyzer.js';
-export { detectPromptMode, extractWords, normalizePrompt, toMatchableText } from './normalize.js';
+export {
+    detectPromptLanguage,
+    detectPromptMode,
+    extractWords,
+    normalizePrompt,
+    toFuzzyMatchableText,
+    toMatchableText,
+} from './normalize.js';
 export { gibberishRule } from './rules/gibberish.js';
 export { injectionRule } from './rules/injection.js';
 export { lengthRule } from './rules/length.js';
@@ -13,6 +20,7 @@ export type {
     AnalysisMetrics,
     AnalysisResult,
     AnalyzerRule,
+    DetectedLanguage,
     Finding,
     PromptAnalyzerConfig,
     PromptContext,
@@ -23,4 +31,4 @@ export type {
     Severity,
     StructureCheckMode,
 } from './types.js';
-export { passesLuhnCheck, shannonEntropy } from './utils.js';
+export { damerauLevenshtein, isFuzzyWordMatch, passesLuhnCheck, shannonEntropy } from './utils.js';
