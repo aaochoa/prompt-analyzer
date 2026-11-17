@@ -137,5 +137,25 @@ export function sum(a: number, b: number) {
 
             expect(result.findings.some((f) => f.code === 'REPEATED_PHRASE_PADDING')).toBe(false);
         });
+
+        it('warns with VAGUE_PROMPT on directionless Spanish and English prompts without concrete context', () => {
+            const esVague = analyzePrompt('Ayúdame con esto por favor');
+            expect(esVague.valid).toBe(true);
+            expect(esVague.action).toBe('warn');
+            expect(esVague.findings.some((f) => f.code === 'VAGUE_PROMPT')).toBe(true);
+
+            const enVague = analyzePrompt('Help me fix this please');
+            expect(enVague.valid).toBe(true);
+            expect(enVague.action).toBe('warn');
+            expect(enVague.findings.some((f) => f.code === 'VAGUE_PROMPT')).toBe(true);
+        });
+
+        it('does not flag VAGUE_PROMPT when a concrete topic or identifier is present', () => {
+            const specificEs = analyzePrompt('¿Qué es Docker?');
+            expect(specificEs.findings.some((f) => f.code === 'VAGUE_PROMPT')).toBe(false);
+
+            const specificWithNumber = analyzePrompt('Ayúdame con el error 404');
+            expect(specificWithNumber.findings.some((f) => f.code === 'VAGUE_PROMPT')).toBe(false);
+        });
     });
 });

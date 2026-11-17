@@ -135,11 +135,17 @@ export class PromptAnalyzer {
             });
         }
 
-        const tokenCount = countTokens(
-            norm.sanitized,
-            this.config.tokenizerModel,
-            this.config.customTokenCounter,
-        );
+        let cachedTokenCount: number | undefined;
+        const getTokenCount = (): number => {
+            if (cachedTokenCount === undefined) {
+                cachedTokenCount = countTokens(
+                    ctx.sanitizedPrompt,
+                    this.config.tokenizerModel,
+                    this.config.customTokenCounter,
+                );
+            }
+            return cachedTokenCount;
+        };
 
         const ctx: PromptContext = {
             rawInput: safeInput,
@@ -149,7 +155,9 @@ export class PromptAnalyzer {
             words,
             matchWords,
             fuzzyWords,
-            tokenCount,
+            get tokenCount() {
+                return getTokenCount();
+            },
             mode: detectedMode,
             language: this.config.language,
             detectedLanguage,
@@ -178,11 +186,7 @@ export class PromptAnalyzer {
                 ctx.words = extractWords(output.sanitizedPrompt);
                 ctx.matchWords = extractWords(ctx.matchText);
                 ctx.fuzzyWords = extractWords(ctx.fuzzyMatchText);
-                ctx.tokenCount = countTokens(
-                    output.sanitizedPrompt,
-                    this.config.tokenizerModel,
-                    this.config.customTokenCounter,
-                );
+                cachedTokenCount = undefined;
             }
 
             if (this.config.failFast && output.findings?.some((f) => f.severity === 'block')) {

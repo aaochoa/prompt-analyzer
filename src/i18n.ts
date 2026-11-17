@@ -83,6 +83,10 @@ const MESSAGES: Record<string, { es: string; en: string }> = {
         es: 'El prompt solo contiene un saludo o texto de relleno sin una petición clara.',
         en: 'The prompt only contains a greeting or filler text without a clear request.',
     },
+    VAGUE_PROMPT: {
+        es: 'El prompt es demasiado ambiguo o carece de contexto y dirección específica.',
+        en: 'The prompt is too vague or lacks specific context and direction.',
+    },
     LOW_PROSE_DIVERSITY: {
         es: 'El prompt tiene poca variedad de palabras para su longitud.',
         en: 'The prompt has low word variety for its length.',

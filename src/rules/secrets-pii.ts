@@ -1,6 +1,11 @@
 import { getFindingMessage, resolveUiLanguage } from '../i18n.js';
 import type { AnalyzerRule, Finding, PromptContext, Severity } from '../types.js';
-import { passesLuhnCheck, shannonEntropy } from '../utils.js';
+import {
+    isValidChileanRut,
+    isValidSpanishDniNie,
+    passesLuhnCheck,
+    shannonEntropy,
+} from '../utils.js';
 
 interface SecretPattern {
     code: string;
@@ -23,7 +28,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     {
         code: 'API_KEY_DETECTED',
         label: 'clave de API',
-        regex: /\b(?:sk-ant-[A-Za-z0-9_-]{20,}|sk-(?:proj-|live-|test-)?[A-Za-z0-9_-]{20,}|(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{24,}|AKIA[0-9A-Z]{16}|gh[pors]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35})\b/g,
+        regex: /\b(?:sk-ant-[A-Za-z0-9_-]{20,}|sk-(?:proj-|live-|test-)?[A-Za-z0-9_-]{20,}|(?:sk|rk)_(?:live|test)_[0-9A-Za-z]{24,}|whsec_[A-Za-z0-9]{24,}|AKIA[0-9A-Z]{16}|gh[pors]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|hf_[A-Za-z0-9]{20,}|npm_[A-Za-z0-9]{20,}|SG\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})\b/g,
         minEntropy: 3.0,
     },
     {
@@ -35,7 +40,7 @@ const SECRET_PATTERNS: SecretPattern[] = [
     {
         code: 'DB_CONNECTION_URI_DETECTED',
         label: 'URI de base de datos con credenciales',
-        regex: /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^:\s/]+:[^@\s/]+@[^\s]+/g,
+        regex: /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^:\s/]+:[^@\s/]+@[^\s)\]}"'>]+(?<![.,;!?])/g,
         minEntropy: 3.0,
     },
     {
@@ -171,6 +176,9 @@ export const secretsPiiRule: AnalyzerRule = {
         if (enableRegionalIds) {
             let idCount = 0;
             sanitized = sanitized.replace(SPAIN_DNI_NIE_RE, (matched) => {
+                if (!isValidSpanishDniNie(matched)) {
+                    return matched;
+                }
                 idCount += 1;
                 return piiAction === 'redact' ? '[REDACTED_DNI]' : matched;
             });
@@ -179,6 +187,9 @@ export const secretsPiiRule: AnalyzerRule = {
                 return piiAction === 'redact' ? '[REDACTED_CURP]' : matched;
             });
             sanitized = sanitized.replace(CHILE_RUT_RE, (matched) => {
+                if (!isValidChileanRut(matched)) {
+                    return matched;
+                }
                 idCount += 1;
                 return piiAction === 'redact' ? '[REDACTED_RUT]' : matched;
             });

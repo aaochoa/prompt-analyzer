@@ -133,3 +133,56 @@ export function isFuzzyWordMatch(word: string, target: string): boolean {
 
     return damerauLevenshtein(word, target, maxDist) <= maxDist;
 }
+
+const SPANISH_DNI_LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
+
+/**
+ * Validates a Spanish DNI (8 digits + check letter) or NIE (X/Y/Z + 7 digits + check letter)
+ * using the official modulo-23 checksum.
+ */
+export function isValidSpanishDniNie(id: string): boolean {
+    const normalized = id.toUpperCase();
+    if (!/^(?:[XYZ]\d{7}|\d{8})[A-HJ-NP-TV-Z]$/.test(normalized)) {
+        return false;
+    }
+
+    const prefix = normalized[0];
+    let numericPart = normalized.slice(0, 8);
+    if (prefix === 'X') numericPart = `0${normalized.slice(1, 8)}`;
+    else if (prefix === 'Y') numericPart = `1${normalized.slice(1, 8)}`;
+    else if (prefix === 'Z') numericPart = `2${normalized.slice(1, 8)}`;
+
+    const number = Number.parseInt(numericPart, 10);
+    const expectedLetter = SPANISH_DNI_LETTERS[number % 23];
+    return expectedLetter === normalized[8];
+}
+
+/**
+ * Validates a Chilean RUT (e.g. `12.345.678-5` or `12345678-K`) using modulo-11.
+ */
+export function isValidChileanRut(rut: string): boolean {
+    const cleaned = rut.replace(/\./g, '').toUpperCase();
+    const parts = cleaned.split('-');
+    if (parts.length !== 2) {
+        return false;
+    }
+
+    const body = parts[0];
+    const verifier = parts[1];
+    if (!body || !verifier || !/^\d{7,8}$/.test(body) || !/^[0-9K]$/.test(verifier)) {
+        return false;
+    }
+
+    let sum = 0;
+    let multiplier = 2;
+    for (let i = body.length - 1; i >= 0; i -= 1) {
+        const ch = body[i];
+        if (ch === undefined) continue;
+        sum += Number.parseInt(ch, 10) * multiplier;
+        multiplier = multiplier === 7 ? 2 : multiplier + 1;
+    }
+
+    const remainder = 11 - (sum % 11);
+    const expected = remainder === 11 ? '0' : remainder === 10 ? 'K' : String(remainder);
+    return expected === verifier;
+}
