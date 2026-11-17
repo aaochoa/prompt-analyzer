@@ -1,6 +1,6 @@
 {
     "name": "prompt-analyzer",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Deterministic, zero-AI-call prompt analyzer and validator for LLMs, tuned for Spanish and bilingual (ES/EN) inputs.",
     "type": "module",
     "main": "./dist/index.cjs",
